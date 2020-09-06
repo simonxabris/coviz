@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import * as d3 from "d3";
 
-  import { ReportType } from "./enums";
+  import type { ReportType } from "./enums";
 
   const DATE_REGEX = /\d{1,2}\/\d{1,2}\/\d{1,2}/;
 
@@ -11,6 +11,27 @@
   const margin = 60;
   const transitionDuration = 800;
   const circleRadius = 2.5;
+
+  // Report type
+  const reportTypes: (keyof typeof ReportType)[] = [
+    "Confirmed",
+    "Deaths",
+    "Recovered",
+  ];
+  let selectedReportType = reportTypes[0];
+  const dataSources = {
+    [reportTypes[0]]:
+      "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv",
+    [reportTypes[1]]:
+      "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv",
+    [reportTypes[2]]:
+      "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv",
+  };
+  const yText = {
+    [reportTypes[0]]: "No. of Infected",
+    [reportTypes[1]]: "No. of Deaths",
+    [reportTypes[2]]: "No. of Recoveries",
+  };
 
   let chosenCountry = "Hungary";
   let countries = [];
@@ -24,24 +45,34 @@
   let line;
   let area;
 
-  async function fetchData() {
-    return await (
-      await fetch(
-        "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
-      )
-    ).text();
+  // data store
+  const fetchedData = {
+    [reportTypes[0]]: undefined,
+    [reportTypes[1]]: undefined,
+    [reportTypes[2]]: undefined,
+  };
+
+  // data to operate on
+  let data;
+
+  async function fetchData(url: string): Promise<any> {
+    const csv = await (await fetch(url)).text();
+
+    const data = d3.csvParse(csv, d3.autoType);
+
+    fetchedData[selectedReportType] = data;
+
+    return data;
   }
 
   async function main() {
-    const csv = await fetchData();
-
-    allData = d3.csvParse(csv, d3.autoType);
+    const allData = await fetchData(dataSources[selectedReportType]);
 
     countries = [...new Set(allData.map((d) => d["Country/Region"]))];
 
     const country = allData.find((d) => d["Country/Region"] === chosenCountry);
 
-    let data = Object.entries(country)
+    data = Object.entries(country)
       .filter(([key]) => key.match(DATE_REGEX))
       .map(([key, value]) => [new Date(key), value])
       .filter((d) => d[1] !== 0);
@@ -114,12 +145,19 @@
 
     svg
       .append("text")
+      .attr("class", "y-text")
       .attr("transform", `translate(0, ${margin - 10})`)
-      .text("Fertőzöttek száma");
+      .text(yText[selectedReportType]);
   }
 
-  function updateData() {
-    const countryData = allData.filter(
+  async function updateData() {
+    let dataSource = fetchedData[selectedReportType];
+
+    if (dataSource === undefined) {
+      dataSource = await fetchData(dataSources[selectedReportType]);
+    }
+
+    const countryData = dataSource.filter(
       (d) => d["Country/Region"] === chosenCountry
     );
 
@@ -161,6 +199,8 @@
       .transition()
       .duration(transitionDuration)
       .call(d3.axisLeft(y).tickSizeOuter(0));
+
+    svg.select(".y-text").text(yText[selectedReportType]);
 
     const circles = svg.selectAll("circle").data(data);
 
@@ -228,4 +268,12 @@
       {/each}
     </select>
   {/if}
+  <select
+    bind:value={selectedReportType}
+    name="report-type"
+    on:change={updateData}>
+    {#each reportTypes as reportType}
+      <option value={reportType}>{reportType}</option>
+    {/each}
+  </select>
 </main>
