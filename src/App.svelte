@@ -102,52 +102,6 @@
       .select("body")
       .append("svg")
       .attr("viewBox", [0, 0, width, height]);
-
-    const div = d3.select("#tooltip");
-
-    svg
-      .append("g")
-      .append("path")
-      .data([data])
-      .attr("class", "line")
-      .attr("fill", "none")
-      .attr("d", line);
-
-    svg
-      .append("path")
-      .data([data])
-      .attr("class", "area")
-      .attr("fill", "#cce5df")
-      .attr("stroke", "#69b3a2")
-      .attr("stroke-width", 1.5)
-      .attr("d", area);
-
-    svg
-      .selectAll("circle")
-      .data(data)
-      .join("circle")
-      .attr("cx", (d) => x(d[0]))
-      .attr("cy", (d) => y(d[1]))
-      .attr("r", circleRadius)
-      .attr("fill", "steelblue");
-
-    svg
-      .append("g")
-      .attr("class", "x-axis")
-      .attr("transform", `translate(0, ${height - margin})`)
-      .call(d3.axisBottom(x));
-
-    svg
-      .append("g")
-      .attr("class", "y-axis")
-      .attr("transform", `translate(${margin}, 0)`)
-      .call(d3.axisLeft(y).tickSizeOuter(0));
-
-    svg
-      .append("text")
-      .attr("class", "y-text")
-      .attr("transform", `translate(0, ${margin - 10})`)
-      .text(yText[selectedReportType]);
   }
 
   async function updateData() {
@@ -178,15 +132,37 @@
       summedCountryData = countryData[0];
     }
 
-    let data = Object.entries(summedCountryData)
+    let newData = Object.entries(summedCountryData)
       .filter(([key]) => key.match(DATE_REGEX))
       .map(([key, value]) => [new Date(key), value])
       .filter((d) => d[1] !== 0);
 
-    x.domain([data[0][0], data[data.length - 1][0]]);
-    y.domain([0, d3.max(data, (d) => d[1])]);
+    x.domain([newData[0][0], newData[newData.length - 1][0]]);
+    y.domain([0, d3.max(newData, (d) => d[1])]);
 
-    const svg = d3.select("svg");
+    data = newData;
+
+    updateAxes();
+  }
+
+  function getAxes() {
+    const svg = d3.select(".chart");
+
+    svg
+      .append("g")
+      .attr("class", "x-axis")
+      .attr("transform", `translate(0, ${height - margin})`)
+      .call(d3.axisBottom(x));
+
+    svg
+      .append("g")
+      .attr("class", "y-axis")
+      .attr("transform", `translate(${margin}, 0)`)
+      .call(d3.axisLeft(y).tickSizeOuter(0));
+  }
+
+  function updateAxes() {
+    const svg = d3.select(".chart");
 
     svg
       .select(".x-axis")
@@ -199,46 +175,12 @@
       .transition()
       .duration(transitionDuration)
       .call(d3.axisLeft(y).tickSizeOuter(0));
-
-    svg.select(".y-text").text(yText[selectedReportType]);
-
-    const circles = svg.selectAll("circle").data(data);
-
-    circles.exit().remove();
-
-    circles
-      .enter()
-      .append("circle")
-      .attr("cx", (d) => x(d[0]))
-      .attr("cy", (d) => y(d[1]))
-      .attr("r", circleRadius)
-      .attr("fill", "steelblue");
-
-    circles
-      .transition()
-      .duration(transitionDuration)
-      .attr("cx", (d) => x(d[0]))
-      .attr("cy", (d) => y(d[1]))
-      .attr("r", circleRadius)
-      .attr("fill", "steelblue");
-
-    svg
-      .select(".line")
-      .data([data])
-      .transition()
-      .duration(transitionDuration)
-      .attr("d", line);
-
-    svg
-      .select(".area")
-      .data([data])
-      .transition()
-      .duration(transitionDuration)
-      .attr("d", area);
   }
 
-  onMount(() => {
-    main();
+  onMount(async () => {
+    await main();
+
+    getAxes();
   });
 </script>
 
@@ -276,4 +218,27 @@
       <option value={reportType}>{reportType}</option>
     {/each}
   </select>
+  {#if data}
+    <svg class="chart" viewBox={`0 0 ${width} ${height}`}>
+      <g>
+        <path
+          fill="#cce5df"
+          stroke="#69b3a2"
+          stroke-width="1.5"
+          d={area(data)} />
+      </g>
+      <g class="circles">
+        {#each data as point (point[0])}
+          <circle
+            cx={x(point[0])}
+            cy={y(point[1])}
+            r={circleRadius}
+            fill="steelblue" />
+        {/each}
+      </g>
+      <text transform={`translate(0, ${margin - 10})`}>
+        {yText[selectedReportType]}
+      </text>
+    </svg>
+  {/if}
 </main>
