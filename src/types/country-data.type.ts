@@ -3,4 +3,4 @@ export type CountryData = {
   "Country/Region": string;
   Lat: number;
   Long: number;
-} & { [date: string]: string };
+} & { [date: string]: number };

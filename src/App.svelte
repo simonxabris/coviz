@@ -52,7 +52,7 @@
     [ReportType.Recovered]: undefined,
   };
 
-  async function fetchData(url: string): Promise<any> {
+  async function fetchData(url: string): Promise<CountryData[]> {
     const csv = await (await fetch(url)).text();
 
     const data = d3.csvParse<CountryData>(csv, d3.autoType);
@@ -70,16 +70,16 @@
 
     const allData = await fetchData(dataSources[selectedReportType]);
 
-    countries = [
-      ...new Set(allData.map((d): string => d["Country/Region"])),
-    ] as string[];
+    countries = [...new Set(allData.map((d): string => d["Country/Region"]))];
 
-    const country = allData.find((d) => d["Country/Region"] === chosenCountry);
+    const country: CountryData = allData.find(
+      (d) => d["Country/Region"] === chosenCountry
+    );
 
     const data = Object.entries(country)
       .filter(([key]) => key.match(DATE_REGEX))
       .map(([key, value]) => [new Date(key), value])
-      .filter((d) => d[1] !== 0);
+      .filter((d) => d[1] !== 0) as [Date, number][];
 
     x = d3
       .scaleTime()
@@ -88,7 +88,7 @@
 
     y = d3
       .scaleLinear()
-      .domain([0, Number.parseInt(d3.max(data, (d) => d[1]))])
+      .domain([0, d3.max(data, (d) => d[1])])
       .range([height - margin, margin]);
 
     area = d3
@@ -97,10 +97,7 @@
       .y0(y(0))
       .y1((d) => y(d[1]));
 
-    const svg = d3
-      .select("body")
-      .append("svg")
-      .attr("viewBox", [0, 0, width, height]);
+    const svg = d3.select(".chart").attr("viewBox", [0, 0, width, height]);
 
     svg
       .append("path")
@@ -179,7 +176,7 @@
     const data = Object.entries(summedCountryData)
       .filter(([key]) => key.match(DATE_REGEX))
       .map(([key, value]) => [new Date(key), value])
-      .filter((d) => d[1] !== 0);
+      .filter((d) => d[1] !== 0) as [Date, number][];
 
     x.domain([data[0][0], data[data.length - 1][0]]);
     y.domain([0, d3.max(data, (d) => d[1])]);
@@ -283,4 +280,5 @@
       <option value={reportType}>{reportType}</option>
     {/each}
   </select>
+  <svg class="chart" />
 </main>
