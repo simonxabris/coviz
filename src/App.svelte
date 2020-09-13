@@ -9,7 +9,7 @@
   const width = 1000;
   const height = 500;
   const margin = 60;
-  const transitionDuration = 800;
+  const transitionDuration = 400;
   const circleRadius = 2.5;
 
   // Report type
@@ -33,7 +33,7 @@
     [reportTypes[2]]: "No. of Recoveries",
   };
 
-  let chosenCountry = "Hungary";
+  let chosenCountry;
   let countries = [];
   let allData;
 
@@ -66,6 +66,11 @@
   }
 
   async function main() {
+    const params = new URLSearchParams(document.location.search);
+    chosenCountry = params.get("country") || "Hungary";
+    selectedReportType =
+      (params.get("type") as keyof typeof ReportType) || "Confirmed";
+
     const allData = await fetchData(dataSources[selectedReportType]);
 
     countries = [...new Set(allData.map((d) => d["Country/Region"]))];
@@ -150,6 +155,15 @@
       .text(yText[selectedReportType]);
   }
 
+  function onSelectChanged() {
+    const url = new URL(document.location.href);
+
+    url.search = `country=${chosenCountry}&type=${selectedReportType}`;
+    history.pushState(null, document.title, url.toString());
+
+    updateData();
+  }
+
   async function updateData() {
     let dataSource = fetchedData[selectedReportType];
 
@@ -217,28 +231,33 @@
     circles
       .transition()
       .duration(transitionDuration)
+      .ease(d3.easeQuadInOut)
       .attr("cx", (d) => x(d[0]))
       .attr("cy", (d) => y(d[1]))
       .attr("r", circleRadius)
       .attr("fill", "steelblue");
 
     svg
-      .select(".line")
-      .data([data])
-      .transition()
-      .duration(transitionDuration)
-      .attr("d", line);
-
-    svg
       .select(".area")
       .data([data])
       .transition()
       .duration(transitionDuration)
+      .ease(d3.easeQuadInOut)
       .attr("d", area);
   }
 
   onMount(() => {
     main();
+
+    window.onpopstate = (event: PopStateEvent) => {
+      const searchParams = new URLSearchParams(
+        (event.target as Window).location.search
+      );
+
+      chosenCountry = searchParams.get("country");
+      selectedReportType = searchParams.get("type") as keyof typeof ReportType;
+      updateData();
+    };
   });
 </script>
 
@@ -260,9 +279,10 @@
   }
 </style>
 
+<!-- svelte-ignore a11y-no-onchange -->
 <main>
   {#if countries.length > 1}
-    <select bind:value={chosenCountry} on:change={updateData}>
+    <select bind:value={chosenCountry} on:change={onSelectChanged}>
       {#each countries as country}
         <option value={country}>{country}</option>
       {/each}
@@ -271,7 +291,7 @@
   <select
     bind:value={selectedReportType}
     name="report-type"
-    on:change={updateData}>
+    on:change={onSelectChanged}>
     {#each reportTypes as reportType}
       <option value={reportType}>{reportType}</option>
     {/each}
