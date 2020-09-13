@@ -1,5 +1,5 @@
 export enum ReportType {
-  Confirmed,
-  Deaths,
-  Recovered,
+  Confirmed = "Confirmed",
+  Deaths = "Deaths",
+  Recovered = "Recovered",
 }

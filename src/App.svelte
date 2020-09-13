@@ -2,7 +2,8 @@
   import { onMount } from "svelte";
   import * as d3 from "d3";
 
-  import type { ReportType } from "./enums";
+  import { ReportType } from "./enums";
+  import type { FetchedData, CountryData } from "./types";
 
   const DATE_REGEX = /\d{1,2}\/\d{1,2}\/\d{1,2}/;
 
@@ -12,53 +13,49 @@
   const transitionDuration = 400;
   const circleRadius = 2.5;
 
-  // Report type
   const reportTypes: (keyof typeof ReportType)[] = [
     "Confirmed",
     "Deaths",
     "Recovered",
   ];
   let selectedReportType = reportTypes[0];
+
   const dataSources = {
-    [reportTypes[0]]:
+    [ReportType.Confirmed]:
       "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv",
-    [reportTypes[1]]:
+    [ReportType.Deaths]:
       "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv",
-    [reportTypes[2]]:
+    [ReportType.Recovered]:
       "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv",
   };
+
   const yText = {
-    [reportTypes[0]]: "No. of Infected",
-    [reportTypes[1]]: "No. of Deaths",
-    [reportTypes[2]]: "No. of Recoveries",
+    [ReportType.Confirmed]: "No. of Infected",
+    [ReportType.Deaths]: "No. of Dead",
+    [ReportType.Recovered]: "No. of Recovered",
   };
 
-  let chosenCountry;
-  let countries = [];
-  let allData;
+  let chosenCountry: string;
+  let countries: string[] = [];
 
   // axes
-  let x;
-  let y;
+  let x: d3.ScaleTime<number, number>;
+  let y: d3.ScaleLinear<number, number>;
 
   //line and area
-  let line;
-  let area;
+  let area: d3.Area<[number, number]>;
 
   // data store
-  const fetchedData = {
-    [reportTypes[0]]: undefined,
-    [reportTypes[1]]: undefined,
-    [reportTypes[2]]: undefined,
+  const fetchedData: FetchedData = {
+    [ReportType.Confirmed]: undefined,
+    [ReportType.Deaths]: undefined,
+    [ReportType.Recovered]: undefined,
   };
-
-  // data to operate on
-  let data;
 
   async function fetchData(url: string): Promise<any> {
     const csv = await (await fetch(url)).text();
 
-    const data = d3.csvParse(csv, d3.autoType);
+    const data = d3.csvParse<CountryData>(csv, d3.autoType);
 
     fetchedData[selectedReportType] = data;
 
@@ -73,11 +70,13 @@
 
     const allData = await fetchData(dataSources[selectedReportType]);
 
-    countries = [...new Set(allData.map((d) => d["Country/Region"]))];
+    countries = [
+      ...new Set(allData.map((d): string => d["Country/Region"])),
+    ] as string[];
 
     const country = allData.find((d) => d["Country/Region"] === chosenCountry);
 
-    data = Object.entries(country)
+    const data = Object.entries(country)
       .filter(([key]) => key.match(DATE_REGEX))
       .map(([key, value]) => [new Date(key), value])
       .filter((d) => d[1] !== 0);
@@ -89,13 +88,8 @@
 
     y = d3
       .scaleLinear()
-      .domain([0, d3.max(data, (d) => d[1])])
+      .domain([0, Number.parseInt(d3.max(data, (d) => d[1]))])
       .range([height - margin, margin]);
-
-    line = d3
-      .line()
-      .x((d) => x(d[0]))
-      .y((d) => y(d[1]));
 
     area = d3
       .area()
@@ -107,16 +101,6 @@
       .select("body")
       .append("svg")
       .attr("viewBox", [0, 0, width, height]);
-
-    const div = d3.select("#tooltip");
-
-    svg
-      .append("g")
-      .append("path")
-      .data([data])
-      .attr("class", "line")
-      .attr("fill", "none")
-      .attr("d", line);
 
     svg
       .append("path")
@@ -192,7 +176,7 @@
       summedCountryData = countryData[0];
     }
 
-    let data = Object.entries(summedCountryData)
+    const data = Object.entries(summedCountryData)
       .filter(([key]) => key.match(DATE_REGEX))
       .map(([key, value]) => [new Date(key), value])
       .filter((d) => d[1] !== 0);
@@ -254,8 +238,11 @@
         (event.target as Window).location.search
       );
 
-      chosenCountry = searchParams.get("country");
-      selectedReportType = searchParams.get("type") as keyof typeof ReportType;
+      chosenCountry = searchParams.get("country") || "Hungary";
+      selectedReportType =
+        (searchParams.get("type") as keyof typeof ReportType) ||
+        ReportType.Confirmed;
+
       updateData();
     };
   });
