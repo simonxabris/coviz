@@ -13,6 +13,9 @@
   const transitionDuration = 400;
   const circleRadius = 2.5;
 
+  const defaultCountry = "Hungary";
+  const defaultReportType = ReportType.Confirmed;
+
   const reportTypes: (keyof typeof ReportType)[] = [
     "Confirmed",
     "Deaths",
@@ -64,22 +67,15 @@
 
   async function main() {
     const params = new URLSearchParams(document.location.search);
-    chosenCountry = params.get("country") || "Hungary";
+    chosenCountry = params.get("country") || defaultCountry;
     selectedReportType =
-      (params.get("type") as keyof typeof ReportType) || "Confirmed";
+      (params.get("type") as keyof typeof ReportType) || defaultReportType;
 
     const allData = await fetchData(dataSources[selectedReportType]);
 
     countries = [...new Set(allData.map((d): string => d["Country/Region"]))];
 
-    const country: CountryData = allData.find(
-      (d) => d["Country/Region"] === chosenCountry
-    );
-
-    const data = Object.entries(country)
-      .filter(([key]) => key.match(DATE_REGEX))
-      .map(([key, value]) => [new Date(key), value])
-      .filter((d) => d[1] !== 0) as [Date, number][];
+    const data = processFetchedData(allData);
 
     x = d3
       .scaleTime()
@@ -145,20 +141,14 @@
     updateData();
   }
 
-  async function updateData() {
-    let dataSource = fetchedData[selectedReportType];
-
-    if (dataSource === undefined) {
-      dataSource = await fetchData(dataSources[selectedReportType]);
-    }
-
-    const countryData = dataSource.filter(
+  function processFetchedData(data: CountryData[]): [Date, number][] {
+    const dataForSelectedCountry = data.filter(
       (d) => d["Country/Region"] === chosenCountry
     );
 
     let summedCountryData = {};
-    if (countryData.length > 1) {
-      for (let data of countryData) {
+    if (dataForSelectedCountry.length > 1) {
+      for (let data of dataForSelectedCountry) {
         for (let [key, value] of Object.entries(data)) {
           if (key.match(DATE_REGEX)) {
             if (summedCountryData.hasOwnProperty(key)) {
@@ -170,13 +160,27 @@
         }
       }
     } else {
-      summedCountryData = countryData[0];
+      summedCountryData = dataForSelectedCountry[0];
     }
 
-    const data = Object.entries(summedCountryData)
+    return Object.entries(summedCountryData)
       .filter(([key]) => key.match(DATE_REGEX))
       .map(([key, value]) => [new Date(key), value])
       .filter((d) => d[1] !== 0) as [Date, number][];
+  }
+
+  async function updateData() {
+    let dataSource = fetchedData[selectedReportType];
+
+    if (dataSource === undefined) {
+      dataSource = await fetchData(dataSources[selectedReportType]);
+    }
+
+    const countryData = dataSource.filter(
+      (d) => d["Country/Region"] === chosenCountry
+    );
+
+    const data = processFetchedData(countryData);
 
     x.domain([data[0][0], data[data.length - 1][0]]);
     y.domain([0, d3.max(data, (d) => d[1])]);
@@ -235,10 +239,10 @@
         (event.target as Window).location.search
       );
 
-      chosenCountry = searchParams.get("country") || "Hungary";
+      chosenCountry = searchParams.get("country") || defaultCountry;
       selectedReportType =
         (searchParams.get("type") as keyof typeof ReportType) ||
-        ReportType.Confirmed;
+        defaultReportType;
 
       updateData();
     };
@@ -251,34 +255,58 @@
     text-align: center;
   }
 
-  .line {
-    fill: none;
-    stroke: steelblue;
-    stroke-width: 2px;
+  .container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
   }
 
-  #tooltip {
-    position: absolute;
-    opacity: 0;
+  .sidebar {
+    padding-top: 20px;
+    padding-left: 10px;
+    padding-right: 10px;
+    flex-grow: 1;
+
+    background-color: #e6e6e6;
+
+    display: flex;
+    flex-direction: column;
+  }
+
+  .content {
+    flex-basis: 0;
+    flex-grow: 999;
+    min-width: 70%;
+    height: 100vh;
   }
 </style>
 
 <!-- svelte-ignore a11y-no-onchange -->
 <main>
-  {#if countries.length > 1}
-    <select bind:value={chosenCountry} on:change={onSelectChanged}>
-      {#each countries as country}
-        <option value={country}>{country}</option>
-      {/each}
-    </select>
-  {/if}
-  <select
-    bind:value={selectedReportType}
-    name="report-type"
-    on:change={onSelectChanged}>
-    {#each reportTypes as reportType}
-      <option value={reportType}>{reportType}</option>
-    {/each}
-  </select>
-  <svg class="chart" />
+  <div class="container">
+    <div class="sidebar">
+      {#if countries.length > 1}
+        <label for="countries">Select Country</label>
+        <select
+          id="countries"
+          bind:value={chosenCountry}
+          on:change={onSelectChanged}>
+          {#each countries as country}
+            <option value={country}>{country}</option>
+          {/each}
+        </select>
+      {/if}
+      <label for="type">Select Type</label>
+      <select
+        id="type"
+        bind:value={selectedReportType}
+        name="report-type"
+        on:change={onSelectChanged}>
+        {#each reportTypes as reportType}
+          <option value={reportType}>{reportType}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="content"><svg class="chart" /></div>
+  </div>
 </main>
