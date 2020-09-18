@@ -252,8 +252,7 @@
 
       chosenCountry = searchParams.get("country") || defaultCountry;
       selectedReportType =
-        (searchParams.get("type") as keyof typeof ReportType) ||
-        defaultReportType;
+        (searchParams.get("type") as ReportType) || defaultReportType;
 
       updateData();
     };
