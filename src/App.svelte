@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import * as d3 from "d3";
 
+  import Map from "./components/map.svelte";
   import { ReportType } from "./enums";
   import type { FetchedData, CountryData } from "./types";
 
@@ -16,10 +17,10 @@
   const defaultCountry = "Hungary";
   const defaultReportType = ReportType.Confirmed;
 
-  const reportTypes: (keyof typeof ReportType)[] = [
-    "Confirmed",
-    "Deaths",
-    "Recovered",
+  const reportTypes: ReportType[] = [
+    ReportType.Confirmed,
+    ReportType.Deaths,
+    ReportType.Recovered,
   ];
   let selectedReportType = reportTypes[0];
 
@@ -55,6 +56,16 @@
     [ReportType.Recovered]: undefined,
   };
 
+  let vizToShow: "chart" | "map" = "map";
+
+  function setVizToShow(viz: "chart" | "map") {
+    vizToShow = viz;
+  }
+
+  $: if (vizToShow === "chart") {
+    main();
+  }
+
   async function fetchData(url: string): Promise<CountryData[]> {
     const csv = await (await fetch(url)).text();
 
@@ -69,7 +80,7 @@
     const params = new URLSearchParams(document.location.search);
     chosenCountry = params.get("country") || defaultCountry;
     selectedReportType =
-      (params.get("type") as keyof typeof ReportType) || defaultReportType;
+      (params.get("type") as ReportType) || defaultReportType;
 
     const allData = await fetchData(dataSources[selectedReportType]);
 
@@ -252,7 +263,6 @@
 <style>
   main {
     font-family: sans-serif;
-    text-align: center;
   }
 
   .container {
@@ -279,12 +289,26 @@
     min-width: 70%;
     height: 100vh;
   }
+
+  .routes {
+    display: flex;
+  }
+
+  .routes > button {
+    flex-grow: 1;
+  }
 </style>
 
 <!-- svelte-ignore a11y-no-onchange -->
 <main>
   <div class="container">
     <div class="sidebar">
+      <div class="routes">
+        <button
+          on:click={() => setVizToShow('chart')}
+          type="button">Chart</button>
+        <button on:click={() => setVizToShow('map')} type="button">Map</button>
+      </div>
       {#if countries.length > 1}
         <label for="countries">Select Country</label>
         <select
@@ -307,6 +331,12 @@
         {/each}
       </select>
     </div>
-    <div class="content"><svg class="chart" /></div>
+    <div class="content">
+      {#if vizToShow === 'chart'}
+        <svg class="chart" />
+      {:else}
+        <Map />
+      {/if}
+    </div>
   </div>
 </main>
