@@ -8,17 +8,13 @@
 
   let group: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
 
-  let country: {
+  let countries: {
     name: string;
     infected: number;
     dead: number;
     recovered: number;
-  } = {
-    name: undefined,
-    infected: undefined,
-    dead: undefined,
-    recovered: undefined,
-  };
+  }[] = [];
+
   let countryData: CountryData[][];
 
   async function fetchCovidData() {
@@ -70,41 +66,50 @@
       .enter()
       .append("path")
       .on("mouseenter", (event) => {
-        d3.select(event.target).attr("fill", "red");
+        d3.select(event.target).attr("fill", "#a1cfc4");
       })
       .on("click", onCountryClicked)
       .on("mouseleave", (event) => {
         const element = d3.select(event.target);
 
-        element.attr("fill", "#cce5df");
+        element.attr("fill", "white");
       })
       .attr("d", d3.geoPath(projection))
-      .attr("fill", "#cce5df")
+      .attr("fill", "white")
       .attr("stroke", "#69b3a2")
-      .attr("stroke-width", 0.3);
+      .attr("stroke-width", 0.8);
 
     function onZoom(event, data) {
-      console.log(event, data);
       group.selectAll("path").attr("transform", event.transform);
     }
   }
 
   function onCountryClicked(event, data) {
-    if (!d3.select(".selected").empty()) {
-      d3.select(".selected").attr("class", "");
+    if (d3.select(event.target).classed("selected")) {
+      d3.select(event.target).attr("class", "");
+
+      const updatedCountries = countries.filter(
+        ({ name }) => name !== data.properties["brk_name"]
+      );
+
+      countries = updatedCountries;
+    } else {
+      d3.select(event.target).attr("class", "selected");
+
+      const stats = getStatsForCountry([
+        data.properties["brk_name"],
+        data.properties["iso_a2"],
+      ]);
+
+      const country = {
+        name: data.properties["brk_name"],
+        ...stats,
+      };
+
+      console.log("country push");
+
+      countries = [...countries, country];
     }
-
-    d3.select(event.target).attr("class", "selected");
-
-    const stats = getStatsForCountry([
-      data.properties["brk_name"],
-      data.properties["iso_a2"],
-    ]);
-
-    country = {
-      name: data.properties["brk_name"],
-      ...stats,
-    };
   }
 
   function getStatsForCountry(
@@ -154,7 +159,7 @@
 
 <style>
   .stats {
-    height: 300px;
+    height: 200px;
     display: flex;
   }
 
@@ -165,26 +170,28 @@
 
     margin: 10px;
     padding: 10px;
-    height: 250px;
-    width: 250px;
+    height: 200px;
+    width: 200px;
     border: 1px solid #e3e3e3;
     border-radius: 5px;
     box-shadow: 5px 5px 11px 3px #e3e3e3, -5px -5px 11px 3px #e3e3e3;
   }
 
   :global(.selected) {
-    fill: red;
+    fill: #a1cfc4;
   }
 </style>
 
 <div class="stats">
-  {#if country.name}
-    <div class="stat">
-      <h1>{country.name}</h1>
-      <p>Infected: {new Intl.NumberFormat().format(country.infected)}</p>
-      <p>Dead: {new Intl.NumberFormat().format(country.dead)}</p>
-      <p>Recovered {new Intl.NumberFormat().format(country.recovered)}</p>
-    </div>
+  {#if countries.length !== 0}
+    {#each countries as country}
+      <div class="stat">
+        <h1>{country.name}</h1>
+        <p>Infected: {new Intl.NumberFormat().format(country.infected)}</p>
+        <p>Dead: {new Intl.NumberFormat().format(country.dead)}</p>
+        <p>Recovered {new Intl.NumberFormat().format(country.recovered)}</p>
+      </div>
+    {/each}
   {:else}
     <h1>Click a country to select it.</h1>
   {/if}
