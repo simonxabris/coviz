@@ -111,7 +111,7 @@
       .attr("cx", (d) => x(d[0]))
       .attr("cy", (d) => y(d[1]))
       .attr("r", circleRadius)
-      .attr("fill", "steelblue");
+      .attr("class", "circle");
 
     svg
       .append("g")
@@ -211,7 +211,7 @@
       .attr("cx", (d) => x(d[0]))
       .attr("cy", (d) => y(d[1]))
       .attr("r", circleRadius)
-      .attr("fill", "steelblue");
+      .attr("class", "circle");
 
     circles
       .transition()
@@ -220,7 +220,7 @@
       .attr("cx", (d) => x(d[0]))
       .attr("cy", (d) => y(d[1]))
       .attr("r", circleRadius)
-      .attr("fill", "steelblue");
+      .attr("class", "circle");
 
     svg
       .select(".area")
@@ -262,12 +262,13 @@
   }
 
   .sidebar {
+    color: white;
     padding-top: 20px;
     padding-left: 10px;
     padding-right: 10px;
     flex-grow: 1;
 
-    background-color: #e6e6e6;
+    background-color: var(--primary-color);
 
     display: flex;
     flex-direction: column;
@@ -278,6 +279,26 @@
     flex-grow: 999;
     min-width: 70%;
     height: 100vh;
+
+    background-color: var(--background-color);
+  }
+
+  :global(.area) {
+    fill: var(--secondary-color);
+    stroke: var(--primary-color);
+  }
+
+  :global(.circle) {
+    fill: var(--primary-color);
+  }
+
+  .control {
+    margin-bottom: 2rem;
+  }
+
+  .select {
+    background-color: var(--background-color);
+    width: 100%;
   }
 </style>
 
@@ -286,8 +307,10 @@
   <div class="container">
     <div class="sidebar">
       {#if countries.length > 1}
+      <div class="control">
         <label for="countries">Select Country</label>
         <select
+          class="select"
           id="countries"
           bind:value={chosenCountry}
           on:change={onSelectChanged}>
@@ -295,17 +318,21 @@
             <option value={country}>{country}</option>
           {/each}
         </select>
+      </div>
       {/if}
-      <label for="type">Select Type</label>
-      <select
-        id="type"
-        bind:value={selectedReportType}
-        name="report-type"
-        on:change={onSelectChanged}>
-        {#each reportTypes as reportType}
-          <option value={reportType}>{reportType}</option>
-        {/each}
-      </select>
+      <div class="control">
+        <label for="type">Select Type</label>
+        <select
+          class="select"
+          id="type"
+          bind:value={selectedReportType}
+          name="report-type"
+          on:change={onSelectChanged}>
+          {#each reportTypes as reportType}
+            <option value={reportType}>{reportType}</option>
+          {/each}
+        </select>
+      </div>
     </div>
     <div class="content"><svg class="chart" /></div>
   </div>
