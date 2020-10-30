@@ -5,6 +5,9 @@ import livereload from 'rollup-plugin-livereload';
 import { terser } from 'rollup-plugin-terser';
 import sveltePreprocess from 'svelte-preprocess';
 import typescript from '@rollup/plugin-typescript';
+import copy from 'rollup-plugin-copy';
+
+import { createHtml } from "./config/plugins/create-html";
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -35,7 +38,10 @@ export default {
 		sourcemap: true,
 		format: 'iife',
 		name: 'app',
-		file: 'public/build/bundle.js'
+		dir: 'build',
+		entryFileNames: '[name].[hash].js',
+		chunkFileNames: '[name].[hash].js',
+		assetFileNames: '[name].[hash][extname]',
 	},
 	plugins: [
 		svelte({
@@ -44,7 +50,7 @@ export default {
 			// we'll extract any component CSS out into
 			// a separate file - better for performance
 			css: css => {
-				css.write('bundle.css');
+				css.write(css.filename);
 			},
 			preprocess: sveltePreprocess(),
 		}),
@@ -60,6 +66,12 @@ export default {
 		}),
 		commonjs(),
 		typescript({ sourceMap: !production }),
+		createHtml(),
+		copy({
+			targets:[
+				{ src: 'public/global.css', dest: 'build/' }
+			]
+		}),
 
 		// In dev mode, call `npm run start` once
 		// the bundle has been generated
@@ -71,7 +83,7 @@ export default {
 
 		// If we're building for production (npm run build
 		// instead of npm run dev), minify
-		production && terser()
+		production && terser(),
 	],
 	watch: {
 		clearScreen: false
