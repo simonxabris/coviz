@@ -5,7 +5,7 @@ export function createHtml() {
   return html({
     title: 'Coviz',
     template({ files, title }) {
-      const scripts = files.js.reduce((scriptsString, chunk) => {
+      const scripts = files.js.filter(file => file.fileName.startsWith('sw') === false).reduce((scriptsString, chunk) => {
         scriptsString += `<script src="/${chunk.fileName}"></script>\n`;
 
         return scriptsString;

@@ -1,13 +1,14 @@
 import svelte from 'rollup-plugin-svelte';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
-import livereload from 'rollup-plugin-livereload';
 import { terser } from 'rollup-plugin-terser';
 import sveltePreprocess from 'svelte-preprocess';
 import typescript from '@rollup/plugin-typescript';
 import copy from 'rollup-plugin-copy';
 
 import { createHtml } from "./config/plugins/create-html";
+import { replaceSwResourceList } from "./config/plugins/replace-service-worker-resources";
+import { replaceServiceWorkerUrl } from "./config/plugins/replace-service-worker-url";
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -33,10 +34,13 @@ function serve() {
 }
 
 export default {
-	input: 'src/main.ts',
+	input: {
+		main: 'src/main.ts',
+		sw: 'src/service-worker.ts'
+	},
 	output: {
 		sourcemap: true,
-		format: 'iife',
+		format: 'es',
 		name: 'app',
 		dir: 'build',
 		entryFileNames: '[name].[hash].js',
@@ -69,17 +73,16 @@ export default {
 		createHtml(),
 		copy({
 			targets:[
-				{ src: 'public/global.css', dest: 'build/' }
+				{ src: 'public/global.css', dest: 'build/' },
+				{ src: 'public/manifest.json', dest: 'build/' }
 			]
 		}),
+		replaceSwResourceList(),
+		replaceServiceWorkerUrl(),
 
 		// In dev mode, call `npm run start` once
 		// the bundle has been generated
 		!production && serve(),
-
-		// Watch the `public` directory and refresh the
-		// browser on changes when not in production
-		!production && livereload('public'),
 
 		// If we're building for production (npm run build
 		// instead of npm run dev), minify

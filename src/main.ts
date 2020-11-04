@@ -1,7 +1,10 @@
 import App from "./App.svelte";
+import swUrl from "sw-url:";
 
-const app = new App({
+new App({
   target: document.body,
 });
 
-export default app;
+window.addEventListener("load", () => {
+  navigator.serviceWorker.register(`/${swUrl}`);
+});
